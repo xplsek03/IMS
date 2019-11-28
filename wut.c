@@ -5,21 +5,99 @@
 #include <vector>
 #include <utility>
 
-int main(int argc, char const *argv[]) {
+// struktura jednoho metru hektaru
 
+	// stavy:	0 - nic
+	//			1 - hrabos
+
+struct metr {
+	int x;
+	int y;
+	int s; // stav pole
+	int jidlo; // pocet jidla na tomhle metru, 440g
+	int jed; // pocet granuli na tomhle metru	
+	
+	// populace
+	int samice;
+	int tehotne_samice;
+	int samci;
+	int deti;
+};
+
+// globalni pole
+// prochazej od zacatku celej hektar
+struct metr pole[10][10];
+
+// rndm cisla z range
+int range(int min, int max) {
+	return ((rand() % (max + 1 - min)) + min);
+}
+	
+// hrabosi z jednoho pole zerou
+void eat_and_stuff(int x, int y, int count) {
+	
+	for(int r = 1; r < 35; r++) { // radius bude 34 na kazdou stranu
+
+		// vypocet nahodnyho smeru a trochu korekce vysledku bliz k nore 1:3
+		int i = range(-r,r);
+		if(range(-3,6) < 0)
+			i /= 2;
+		int j = range(-r,r);
+		if(range(-3,6) < 0)
+			j /= 2;
+		
+		// vygeneruj nahodne smery, kudy bude zrat. Porad se ale snazi jist co nejbliz hnizda
+
+		
+		if(x+i >= 0 && x+i < 10 && y+j >= 0 && y+j < 10) {
+		
+			while(pole[x+i][y+j].jidlo) {
+				count--;
+				pole[x+i][y+j].jidlo -= 5;
+				
+				if(!count)
+					return;
+				
+			}
+		}
+	}
+	
+}	
+
+// pareni
+void screw(int x, int y, int samci) {
+	for(int c = 0; c < samci; c++) {
+		for(int r = 1; r < 35; r++) { // radius bude 34 na kazdou stranu
+
+			for(int i = -r, j = -r; i <= r; i++,j++) {
+				if(x+i >= 0 && x+i < 10 && y+j >= 0 && y+j < 10) {
+					if((pole[x+i][y+j].samice - pole[x+i][y+j].tehotne_samice) > 0) { // pouze dostupne samice
+						pole[x+i][y+j].deti += 5; // priblizne 5
+						pole[x+i][y+j].samice--; // odstran samici
+						pole[x+i][y+j].tehotne_samice++; // tehotna samice
+						continue; // tady implementuj vytrvalost, max pocet pareni za 14 dnu
+					}
+				}
+			}
+		}		
+	}
+}
+
+int main(int argc, char const *argv[]) {
+	
+	int celkem = 0; // celkovej pocet tech zatracenejch mysi
+	
+	time_t t;
+	
     SDL_Window * window;
     SDL_Renderer * renderer;
-    int w = 6;
-    int minesCount = 10;
-    bool isRunning=true;
-    srand(time(NULL));
-
+    int w = 6; // graficka v/s metru
+    bool isRunning = true;
     // inicializace SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cout << "Chyba SDL: " << SDL_GetError() << '\n';
         return -1;
     }
-
     // vytvoreni SDL okna
     if (SDL_CreateWindowAndRenderer(600, 600,SDL_WINDOW_OPENGL, &window, &renderer) < 0) {
         std::cout << "Chyba SDL: " << SDL_GetError() << '\n';
@@ -29,173 +107,141 @@ int main(int argc, char const *argv[]) {
         return -2;
     }
 
-    // SEM SI DOPLN CO POTREBUJES
-    // struktura jednoho metru hektaru
-    struct metr {
-        bool isMine;
-        int n;  // Neighbors
-        bool isRevealed=false;
-    };
+	// HRABOS DEF
+	
+	// zamichej cas
+	srand((unsigned) time(&t));
+	
+	// promenne vnejsich vlivu
+	//float vlhkost;
+	//float teplota; // vzduchu
+	//float snih; // vrstva snehu
+	//float srazky; // mm srazek
+	
+	// resetuj pole
+	for(int i = 0; i < 10; i++) {
+		for(int j = 0; j < 10; j++) {
+			pole[i][j].x = i;
+			pole[i][j].y = j;
+			pole[i][j].jidlo = 440;
+		}
+	}
+	
+	// pridej hrabose
+	pole[3][3].s = 1; // je tu hrabos
+	pole[3][3].samci = 1; // je tu 1 hrabos	
 
-    // inicializuj hektar
-    metr pole[100][100];
-    for (int i = 0; i < 100; i++) {
-        for (int j = 0; j < 100; j++) {
-            pole[i][j].isMine = false;
-            pole[i][j].n = 0;
-        }
-    }
+	// pridej hrabose
+	pole[5][5].s = 1; // je tu hrabos
+	pole[5][5].samice = 1; // je tu 1 hrabos
 
-    // Fill pole with minesCount of mines.
-    int m = 0;
-    while(m < minesCount) {
-        int x = rand()%10;
-        int y = rand()%10;
-        if (pole[x][y].isMine)
-        continue;
-        pole[x][y].isMine=true;
-        m++;
-    }
+	celkem += 2; // DEBUG
 
-  // Calculate neighbors
-  for (int i = 0; i < 10; i++) {
-    for (int j = 0; j < 10; j++) {
-      // If this is mine, skip it
-      if (pole[i][j].isMine) {
-        pole[i][j].n=9; // Choose correct texture from sheet tho
-        continue;
-      }
-      int n=0;
-      // Calculate all neighbors on 3x3 grid around tile
-      for (int x = -1; x <= 1; x++) {
-        for (int y = -1; y <= 1; y++) {
-          int xoff=i+x;
-          int yoff=j+y;
-          // Do not count outside array
-          if (xoff<0 || xoff>9 || yoff<0 || yoff>9)
-            continue;
-          if (pole[xoff][yoff].isMine)
-            n++;
-        }
-        // Update neighbor count to the struct
-        pole[i][j].n=n;
-      }
-    }
-  }
+	SDL_Rect rect;
 
-  // Main loop
-  while (isRunning) {
-    // We want to use black background
-    SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
-    // Clear the screen with current background color
-    SDL_RenderClear(renderer);
+int c = 0;
 
-    // DO DRAW
-    SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-    for (int i = 0; i < 100; i++) {
-      for (int j= 0; j < 100; j++) {
-        // for showing grid at start
-        SDL_Rect rect;
-        rect.x=i*w;
-        rect.y=j*w;
-        rect.w=w;
-        rect.h=w;
-        SDL_SetRenderDrawColor(renderer, 0, 0xFF, 0, 0xFF);
-        SDL_RenderFillRect(renderer, &rect);
-        // outline
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xFF);
-        SDL_RenderDrawRect(renderer, &rect);
-
-        // Player has clicked on tile and we want to show tilesheet graphics
-        // Continue loop since current tile has not yet been revealed
-
-        //if (!pole[i][j].isRevealed)
-        //  continue;
-
-        // 1 HRABOS
-        SDL_Rect h;
-        h.x=10*w;
-        h.y=20*w;
-        h.w=w;
-        h.h=w;
-        SDL_SetRenderDrawColor(renderer, 0xFF, 0, 0, 0xFF);
-        SDL_RenderFillRect(renderer, &h);
-        // outline
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xFF);
-        SDL_RenderDrawRect(renderer, &h);
-      }
-    }
-
-    // Handle inputs
-    SDL_Event e;
-    while (SDL_PollEvent(&e)) {
-      if (e.type == SDL_QUIT) {
-        isRunning=false;
-      }
-
-      if (e.type == SDL_MOUSEBUTTONDOWN) {
-        int mouseX, mouseY;
-        Uint32 buttons; // NOTE: button_state is 32 bit integer
-        buttons = SDL_GetMouseState(&mouseX, &mouseY); // getting state
-        // Make sure mouse pointer is in field (and window)
-        if (mouseX<0 || mouseX>600 || mouseY<0 || mouseY>600)
-          continue;
-        if (buttons & SDL_BUTTON(SDL_BUTTON_LEFT) ){ // Left mouse button
-          // calculate which tile we are in and reveal it
-          int i,j;
-          i=mouseX/w;
-          j=mouseY/w;
-          pole[i][j].isRevealed=true;
+	while (isRunning && c < 10) {
+		
+		// samec se muze pohnout o 34 poli na kazdou stranu
+		// samice se muze pohnout o 9 poli na akzdou stranu, pokud neni brezi
+		// nedospely samec je ulzoenej ve strukture pole
+		
+		// prechody:	rand, ze muze mit deti v dalsim cyklu
+		// pokud je v okoli predator, rand ze umre
+		// pokud je v okoli jed, rand ze sni jed
+		// pokud je tam dost urody, pomer toho ze sezere jed a ne urodu
+		
+		// koeficient pocasi s epocita na zacaktu kazdeho cyklu a je sance, ze ten hrbaos chcipne
 
 
 
-          // Crap.. We actually hit cell without neighboring mines
-          // TODO: Reveal only horizontal/vertical neigbors; not diagonal?
-          if (pole[i][j].n==0) {
-            // Flood fill time!!
-            std::vector <std::pair<int,int>> pairs;
-            auto pair = std::make_pair(i,j);
-            pairs.push_back(pair);
+		// AUTOMATA START
+		
+		// We want to use black background
+		SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
+		// Clear the screen with current background color
+		SDL_RenderClear(renderer);
+		
+		// DO DRAW
+		//SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+		
+		for (int i = 0; i < 10; i++) {
+			for (int j = 0; j < 10; j++) {
 
-            // Loop until all 0's are filled.
-            while (!pairs.empty()) {
-              // Get last pair out of que
-              auto current = pairs.back();
-              pairs.pop_back();
+				rect.x=i*w;
+				rect.y=j*w;
+				rect.w=w;
+				rect.h=w;
 
-              for (int x = -1; x <= 1; x++) {
-                for (int y = -1; y <= 1; y++) {
-                  int xoff=current.first+x;
-                  int yoff=current.second+y;
-                  // Do not count outside array
-                  if (xoff<0 || xoff>9 || yoff<0 || yoff>9)
-                    continue;
-                  // skip if revealed
-                  if (pole[xoff][yoff].isRevealed)
-                    continue;
+				// pokud je tam hrabos
+				if(pole[i][j].s == 1) {
+					
+					// vyres tehotne samice
+					pole[i][j].samice += pole[i][j].tehotne_samice; // tehotne zpet do pristupneho stavu
+					pole[i][j].tehotne_samice = 0; // reset
+					
+					// vyres cerstve deti
+					for(int d = 0; d < pole[i][j].deti; d++) {
+						if(rand() & 1) { // je to kluk
+							pole[i][j].samci++;					
+							celkem++;
+						}
+						else { // je to holka
+							pole[i][j].samice++;
+							celkem++;
+						}
+					}
+					pole[i][j].deti = 0; // smaz deti
+					
+					eat_and_stuff(i,j, pole[i][j].samci + pole[i][j].samice); // hrabosi se nazerou
+					screw(i,j,pole[i][j].samci); // pareni
 
-                  // finally reveal neigbor
-                  pole[xoff][yoff].isRevealed=true;
-                  // if revealed tile is 0 also. push it back to be checked
-                  if (pole[xoff][yoff].n==0) {
-                    auto newpair = std::make_pair(xoff, yoff);
-                    pairs.push_back(newpair);
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+					SDL_SetRenderDrawColor(renderer, 0xFF, 0, 0, 0xFF);
+					SDL_RenderFillRect(renderer, &rect);			
+					SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xFF);
+					SDL_RenderDrawRect(renderer, &rect);
+				}
+				else {
+					if(!pole[i][j].jidlo) {
+						SDL_SetRenderDrawColor(renderer, 0x66, 0x33, 0, 0xFF);
+						SDL_RenderFillRect(renderer, &rect);		
+						SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xFF);
+						SDL_RenderDrawRect(renderer, &rect);						
+					}
+					else if(pole[i][j].jidlo != 440) {
+						SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0, 0xFF);
+						SDL_RenderFillRect(renderer, &rect);		
+						SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xFF);
+						SDL_RenderDrawRect(renderer, &rect);						
+					}
+					else {
+						SDL_SetRenderDrawColor(renderer, 0, 0xFF, 0, 0xFF);
+						SDL_RenderFillRect(renderer, &rect);		
+						SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xFF);
+						SDL_RenderDrawRect(renderer, &rect);						
+					}
+					
 
-    // Show currrent frame
-    SDL_RenderPresent(renderer);
-    // Sleep a bit TODO: fps gapping?
-    SDL_Delay(20);
+				}
+				
+			}
+		}
+		
+		// AUTOMATA END
+
+
+		// Show currrent frame
+		SDL_RenderPresent(renderer);
+		
+		// Sleep a bit TODO: fps gapping?
+		SDL_Delay(1000); // 50
+		
+		std::cout << "cyklus " + c << '\n';
+		std::cout << "populace: " << celkem << "\n\n";
+		c++;
 
   }
-  SDL_Delay(200);
 
   // Be kind and clean afterwards
   SDL_DestroyRenderer(renderer);
