@@ -1,9 +1,32 @@
 #include <iostream>
-#include <SDL2/SDL.h>
+#include "SDL2/SDL.h"
 #include <cmath>
 #include <ctime>
 #include <vector>
 #include <utility>
+
+// konstanty pocasi
+float snih[] = {22,18.5,0.5,0,0,0,0,0,0,0,5,2};
+int srazky[] = {46,25,23,27,35,47,43,39,98,23,14,37}; // normalni jizni moravy 35mm, tzn problem zacne od 50mm
+float teplota[] = {2.27,-2,2.28,14.12,17.86,19.79,21.42,22.48,15.81,11.96,6.09,1.72};
+
+float mortalita; // koeficient vnejsich vlivu
+
+// funkce na vypocitani zivotni urovne z hlediska pocasi a dalsich vnejsich vlivu. Nastavuje se nad jednim konkretnim polem!
+void weather(int cyklus) {
+    int mortality = 0;
+    if(srazky[cyklus] > 50)
+      mortality += 50;
+    else if(teplota < 0 && snih[cyklus] < 5)
+      mortality += 20;
+    for(int i = 0; i < 10; i++)
+      for(int j = 0; j < 10; j++)
+	mortalita = mortality;
+}
+
+// pak taky z hlediska dravcu
+
+// funkce na orbu neni, pokud je nastavena orba zabiji proste hrabose
 
 // jeden ar, nase minimalni jednotka
 struct ar {
@@ -13,15 +36,18 @@ struct ar {
 	// dalsi veci jako overlay, JEDY, KVALITA ZIVOTA, PREDATORI ATD.
 };
 
+struct ar pole[10][10]; // jeden hektar = jedno pole
+
 int main(int argc, char const *argv[]) {
 
+  std::srand(std::time(0));
+  
     SDL_Window * window;
     SDL_Renderer * renderer;
 	
     int w = 30; // graficka v/s metru
 
-	int buffer[10][10]; // buffer na meziukladani
-	struct ar pole[10][10]; // jeden hektar
+    int buffer[10][10]; // buffer na meziukladani
 	
     // inicializace SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -46,17 +72,23 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	
-	pole[4][5].s = 3;
-	pole[5][5].s = 2;
+	// nastav pocatecni nory
+	pole[4][5].s = 1;
+	pole[5][5].s = 1;
 
 	SDL_Rect rect;
 
+	// jeden cyklus ma 2t, rok ma 52t, tzn za rok 26 cyklu (1. ledna az 31. prosince)
 	int c = 0; // pocet cyklu
 
-	while (c < 10) {
+	while (c < 26) {
 
 		// AUTOMATA START
 		
+		// vnejsi prirodni vlivy
+		
+		weather(((c % 2) == 1) ? c-1 : c);
+	  
 		// We want to use black background
 		SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
 		// Clear the screen with current background color
@@ -82,25 +114,73 @@ int main(int argc, char const *argv[]) {
 					}
 				}
 				
-				// analyza jednoho aru
-				if(sum == 0) {
-					buffer[i][j] = 0;
-					SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-				}					
-				else if(sum >= 1 && sum <= 4) {
-					buffer[i][j] = 1;
-					SDL_SetRenderDrawColor(renderer, 0xFF, 0xC3, 0xB7, 0xFF);
-				}					
-				else if(sum >= 5 && sum <= 20) {
-					buffer[j][i] = 2;
-					SDL_SetRenderDrawColor(renderer, 0xFF, 0x6B, 0x4B, 0xFF);
-				}					
-				else {
-					buffer[j][i] = 3;
-					SDL_SetRenderDrawColor(renderer, 0xDE, 0x27, 0, 0xFF);
+				// JARO
+				if(c >= 4 && c <= 9) {
+				    if(sum == 0) {
+					    buffer[i][j] = 0;
+					    SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+				    }				
+				    else if(sum >= 1 && sum <= 4) {
+					    buffer[i][j] = 1;
+					    SDL_SetRenderDrawColor(renderer, 0xFF, 0xaa, 0x98, 0xFF);
+				    }					
+				    else if(sum >= 5 && sum <= 10) {
+					    buffer[j][i] = 2;
+					    SDL_SetRenderDrawColor(renderer, 0xFF, 0x56, 0x32, 0xFF);
+				    }				
+				    else if(sum >= 10 && sum <= 20) {
+					    buffer[j][i] = 3;
+					    SDL_SetRenderDrawColor(renderer, 0xFe, 0x41, 0x18, 0xFF);
+				    }					
+				    else if(sum > 20) {
+					    buffer[j][i] = 4;
+					    SDL_SetRenderDrawColor(renderer, 0xfe, 0x2d, 0, 0xFF);
+				    }			  
+				}
+				// LETO
+				else if(c >= 10 && c <= 15) {
+				    if(sum == 0) {
+					    buffer[i][j] = 0;
+					    SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+				    }				
+				    else if(sum >= 1 && sum <= 20) {
+					    buffer[i][j] = 1;
+					    SDL_SetRenderDrawColor(renderer, 0xFF, 0xaa, 0x98, 0xFF);
+				    }					
+				    else if(sum >= 21 && sum <= 40) {
+					    buffer[j][i] = 2;
+					    SDL_SetRenderDrawColor(renderer, 0xFF, 0x56, 0x32, 0xFF);
+				    }				
+				    else if(sum >= 41 && sum <= 60) {
+					    buffer[j][i] = 3;
+					    SDL_SetRenderDrawColor(renderer, 0xFe, 0x41, 0x18, 0xFF);
+				    }					
+				    else if(sum > 61) {
+					    buffer[j][i] = 4;
+					    SDL_SetRenderDrawColor(renderer, 0xfe, 0x2d, 0, 0xFF);
+				    }					  
 				}
 				
-				// APLIKUJ NA ARU RUZNE VLIVY, VNITRNI I VNEJSI
+				// PODZIM
+				else if(c >= 16 && c <= 21) {
+				  				  
+				}
+				// ZIMA
+				else {
+				  
+				}
+				
+				// APLIKUJ NA ARU RUZNE VLIVY, NEJDRIV VNEJSI
+				if(mortalita) {
+				    if(buffer[j][i] = 1)
+				      buffer[j][i] = 0;
+				    else if(buffer[j][i] = 2)
+				      buffer[j][i] = 1;
+				    else if(buffer[j][i] = 3)
+				      buffer[j][i] = 1;
+				    else if(buffer[j][i] = 4)
+				      buffer[j][i] = 2;
+				}
 				
 				// extremni prehrabosovani, vnitrni vliv
 				if(sum > 20) {
