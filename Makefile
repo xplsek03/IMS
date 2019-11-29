@@ -1,2 +1,2 @@
 all:
-	g++ -o wut wut.c -lSDL2
+	g++ -o CA CA.c -lSDL2
