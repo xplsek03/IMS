@@ -27,10 +27,6 @@ void weather(int cyklus) {
       mortalita += 0.4;
 }
 
-// pak taky z hlediska dravcu
-
-// funkce na orbu neni, pokud je nastavena orba zabiji proste hrabose
-
 // jeden ar, nase minimalni jednotka
 struct ar {
 	float s; // prumerny pocet hrabosu na 1 aru (max. 5.5 nebo tak)
@@ -80,25 +76,24 @@ int main(int argc, char const *argv[]) {
 	}
 	
 	// nastav pocatecni nory, 2 hrabosi
-	buffer[4][5] = 1;
-	buffer[5][5] = 2;
+	pole[4][5].s = 1;
+	pole[5][5].s = 1;
 
 	SDL_Rect rect;
 
 	// jeden cyklus ma 2t, rok ma 52t, tzn za rok 26 cyklu (1. ledna az 31. prosince)
-	int c = 0; // pocet cyklu
+	int y = 0; // rok 0/1
+	int c = 4; // zaciname na zacatku brezna prvniho roku
 	float nor; // DEBUG: celkovy pocet nor v cyklu
-	float nor_minule = 2; // DENUG: celkovy pocet nor minuly mesic, kvuli nepareni v zime. navic zaciname na 2
+	int safety; // kolik zachytnejch nor se objevi na jare na 1ha
 	
 	while (c < 24) {
 
 		nor = 0; // DEBUG: vynuluj nory celkem
-
-		// AUTOMATA START
+		safety = 0;
 		
-		// vnejsi prirodni vlivy, po mesici		
-		weather(((c % 2) == 1) ? c-1 : c);
-	  
+		// AUTOMATA START
+
 		// We want to use black background
 		SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
 		// Clear the screen with current background color
@@ -115,55 +110,62 @@ int main(int argc, char const *argv[]) {
 				
 				int out = 0; // pocet tech co jsou mimo mapu
 				float sum = 0; // MOOROVO OKOLI = 9 prvku
-
-				
-				if(c >= 3 && c <= 21) {	// provadej jen v paricich mesicich		
-					for(int a = -1; a <= 1; a++) {
-						for(int b = -1; b <= 1; b++) {
-							if(i+a < 0 || i+a > 9 || j+b < 0 || j+b > 9) // mimo, takze do tech co jsou mimo uloz prumer zbytku
-								out++;
-							else { // scitej nory v akru
-								sum += pole[i+a][j+b].s;
-							}
+	
+				for(int a = -1; a <= 1; a++) {
+					for(int b = -1; b <= 1; b++) {
+						if(i+a < 0 || i+a > 9 || j+b < 0 || j+b > 9) // mimo, takze do tech co jsou mimo uloz prumer zbytku
+							out++;
+						else { // scitej nory v akru
+							sum += pole[i+a][j+b].s;
 						}
 					}
-					// uloz do sum prumer prvku mimo mapu
-					if(out) {
-						sum += ((sum/(9-out))*out);
-					}
-					nor += sum; // uloz z jednoho aru pocet nor
 				}
-				else { // v neparicich obdobich jenom scitej
-					nor += pole[i][j].s;
+				// uloz do sum prumer prvku mimo mapu
+				if(out) {
+					sum += ((sum/(9-out))*out);
 				}
+				nor += sum; // uloz z jednoho aru pocet nor				
 				
-				// if(pocet der na 9 arech) then: pocet der na jednom aru
+				// soucasti nastavenych automatu jsou automaticti dravci a prumerne teploty. extremy se zapocitaji zvlast.
+				// v prvnich dvou letech je delsi rozmnozovaci obdobi, v ramci gradace
 				
 				// JARO
-				if(c >= 3 && c <= 9) {
+				// snazime se o zacatek prudkeho rustu populace, ale ne tak prudkeho jako pres leto
+
+				if(c == 4) {
+					if(safety < 3) {
+				    	if(rand() % 5 == 0) {
+				    		if(sum < 2) {
+					    		buffer[i][j] = 2;
+				    		}			
+				    		safety++;
+				    	}
+				    			
+				    }	
+				}
+
+				if(c > 4 && c <= 9) {
 				    if(sum < 2) {
 					    buffer[i][j] = 0;
 				    }				
-				    else if(sum >= 2 && sum <= 8) { // cim bliz nastavis 8 devitce, tim pomalejc to poroste
+				    else if(sum >= 2 && sum <= 8) {
 					    buffer[i][j] = 1;
 				    }					
-				    else if(sum > 8 && sum <= 17) {
+				    else if(sum > 8 && sum <= 19) {
 					    buffer[i][j] = 2;
 				    }				
-				    else if(sum > 17 && sum <= 26) {
+				    else if(sum > 19 && sum <= 29) {
 					    buffer[i][j] = 3;
 				    }					
-				    else if(sum > 26 && sum <= 35) {
+				    else if(sum > 29 && sum <= 40) {
 					    buffer[i][j] = 4;
 				    }	
-				    else if(sum > 35 && sum <= 44) {
+				    else if(sum > 40) {
 					    buffer[i][j] = 5;
-				    }	
-				    else if(sum > 44) {
-					    buffer[i][j] = 6;
-				    }	  
+				    }		  
 				}
 				// LETO
+				// populacni boom v plne parade
 				else if(c >= 10 && c <= 15) {
 				    if(sum < 2) {
 					    buffer[i][j] = 0;
@@ -171,65 +173,75 @@ int main(int argc, char const *argv[]) {
 				    else if(sum >= 2 && sum <= 8) {
 					    buffer[i][j] = 1;
 				    }					
-				    else if(sum > 8 && sum <= 12) {
+				    else if(sum > 8 && sum <= 10) {
 					    buffer[i][j] = 2;
 				    }				
-				    else if(sum > 12 && sum <= 18) {
+				    else if(sum > 10 && sum <= 17) {
 					    buffer[i][j] = 3;
 				    }					
-				    else if(sum > 18 && sum <= 27) {
+				    else if(sum > 17 && sum <= 29) {
 					    buffer[i][j] = 4;
 				    }	
-				    else if(sum > 27 && sum <= 40) {
+				    else if(sum > 29 && sum <= 42) {
 					    buffer[i][j] = 5;
 				    }	
-				    else if(sum > 40) {
+				    else if(sum > 42 && sum <= 50) {
 					    buffer[i][j] = 6;
-				    }  		  
+				    } 
+				    else if(sum > 50 && y == 0)
+				    	buffer[i][j] = 5; 		  
 				}
 				
-				// PODZIM
-				// vymirani s eda zpusobit tak ze nizsi stavy priradis pri vyssim sum
-				else if(c >= 16 && c <= 21) {
+				// PODZIM 1. polovina - drzi se
+				// postupne zacne stagnovat
+				else if(c >= 16 && c <= 18) {
 				    if(sum < 2) {
 					    buffer[i][j] = 0;
 				    }				
 				    else if(sum >= 2 && sum <= 11) {
 					    buffer[i][j] = 1;
-				    }					
-				    else if(sum > 11 && sum <= 20) {
+				    }								
+				    else if(sum > 11 && sum <= 40) {
 					    buffer[i][j] = 2;
+				    }
+				    else if(sum > 40) {
+					    if(rand() & 1)
+					    	buffer[i][j] = 3;
+					    else
+					    	buffer[i][j] = 2;
+				    }		 							  
+				}
+				// PODZIM 2. polovina - upada
+				// postupne zacne vymirat
+				else if(c >= 19 && c <= 21) {
+				    if(sum < 4) {
+					    buffer[i][j] = 0;
 				    }				
-				    else if(sum > 20 && sum <= 37) {
-					    buffer[i][j] = 3;
-				    }					
-				    else if(sum > 37 && sum <= 40) {
-					    buffer[i][j] = 4;
-				    }	
-				    else if(sum > 40 && sum <= 50) {
-					    buffer[i][j] = 5;
-				    }	
-				    else if(sum > 50) {
-					    buffer[i][j] = 6;
-				    }  			  				  
+				    else if(sum >= 4 && sum <= 23) {
+					    if(rand() & 1)
+					    	buffer[i][j] = 1;
+					    else
+					    	buffer[i][j] = 0;
+				    }								
+				    else if(sum >= 23) {
+					    if(rand() & 1)
+					    	buffer[i][j] = 1;
+					    else
+					    	buffer[i][j] = 0;
+				    }		  				  
 				}
-				// ZIMA - POUZE KONEC, NE LEDEN/UNOR
-				else if(c >= 21) {
-
-				}
+				// ZIMA
+				else {
+					if(buffer[i][j] > 0) {
+						if(rand() % 3 == 0)
+							buffer[i][j]--;
+					}
+				}				
 				
-				// vnitrni problemy START				
-				if(sum > 50)
-					buffer[i][j] /= 1.5;
-				
-				// vnejsi problemy START
-				if(mortalita) {
-					buffer[i][j] *= mortalita;
-				}
-			
-				// tady seda klidne aplikvoat neco zpetne na to okoli
-				// da se sledovat hodnota, jak tu byla dlouho napr. 3 a teprve pak roznaset nemoci
-				// vyrobit nove stavy, jako nemoci atd.
+				// vnejsi problemy START	
+				//weather(((c % 2) == 1) ? c-1 : c);	  
+				//if(mortalita)
+				//	buffer[i][j] *= mortalita;
 				
 				// TEPRVE TED VYKRESLUJ, vnejsi vlivy muzou zmenit barvu
 				int f_to_i = buffer[i][j];
@@ -277,12 +289,13 @@ int main(int argc, char const *argv[]) {
 		}
 		
 		c++; // pricti cyklus
-		
-		std::cout << "14 dni x " << c << ": " << (!nor ? (int)nor_minule : (int)nor) << "\n";
-		if(nor)
-			nor_minule = nor; // DEBUG: uloz pocet nor pro dalsi mesic
-		if(c % 2 == 0)
-			std::cout << "\n";
+				
+		std::cout << "rok: " << y+1 << "\tmesic: " << ((c%2 == 0) ? c/2 : ((c+1)/2)) << "\tnor: "<< nor << "\thrabosu: " << nor/2.5 << " - " <<  nor/2 << "\n";
+
+		if(c == 24 && !y) { // pokracuj druhym rokem
+			y++; // pricti rok
+			c = 0; // jed druhy rok
+		}
 
 	}
 

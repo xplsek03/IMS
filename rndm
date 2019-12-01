@@ -1,0 +1,20 @@
+					int rnd;
+					if(!y)
+						rnd = 2;
+					else
+						rnd = 3;
+				    if(sum < 2) {
+					    buffer[i][j] = 0;
+				    }				
+				    else if(sum >= 2 && sum <= 23) {
+					    if(rand() % rnd == 0)
+					    	buffer[i][j] = 1;
+					    else
+					    	buffer[i][j] = 0;
+				    }								
+				    else if(sum >= 23) {
+					    if(rand() % rnd == 0)
+					    	buffer[i][j] = 1;
+					    else
+					    	buffer[i][j] = 0;
+				    }	
