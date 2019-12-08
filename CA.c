@@ -6,8 +6,8 @@
 #include <utility>
 #include <time.h>
 
-// maxima na 1 ctverecek
-#define T_MAX 93.8
+// maxima na jeden ctverecek moorova okoli, 1.4 aru
+#define T_MAX 31.5
 #define PS_MAX 32.76
 
 // jeden ar, nase minimalni jednotka
@@ -21,7 +21,7 @@ struct ar {
 	int livable; // pole je obyvatelne
 };
 
-struct ar pole[100][100]; // jeden hektar = jedno pole
+struct ar pole[43][100]; // jeden hektar = jedno pole
 
 // uprav trochu aby se to menilo
 float distr(float a) {
@@ -42,7 +42,7 @@ int main(int argc, char const *argv[]) {
 	
     int w = 6; // graficka v/s metru
 
-    float buffer[100][100]; // buffer na meziukladani
+    float buffer[43][100]; // buffer na meziukladani
 	
     // inicializace SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -59,7 +59,7 @@ int main(int argc, char const *argv[]) {
     }
 	
 	// resetuj pole a napln typem potravin, taky pocatecnim mnozstvim
-	for(int i = 0; i < 100; i++) {
+	for(int i = 0; i < 43; i++) {
 		for(int j = 0; j < 100; j++) {
 		
 			// reset bufferu
@@ -71,14 +71,16 @@ int main(int argc, char const *argv[]) {
 			else if(i >= 18 && i < 43) {
 				pole[i][j].plodina = 1; // pole 2, ozima psenice
 			}
-			else {
-				pole[i][j].plodina = 0; // pole 3 a 4, tolice
-			}
+			//else { // POLE 3 a 4 ZRUSENO
+			//	pole[i][j].plodina = 0; // pole 3 a 4, tolice
+			//}
 			
 			// napln promennymi
 			pole[i][j].x = i;
 			pole[i][j].y = j;
-			pole[i][j].livable = 1;
+			
+			if(i < 43) // deaktivuj pole 3 a 4
+				pole[i][j].livable = 1;
 			
 			// napln hrabosi pocatecnimi
 			if(pole[i][j].plodina) {
@@ -109,7 +111,7 @@ int main(int argc, char const *argv[]) {
 		// Clear the screen with current background color
 		SDL_RenderClear(renderer);
 		
-		for(int i = 0; i < 100; i++) {
+		for(int i = 0; i < 43; i++) {
 			for(int j = 0; j < 100; j++) {
 
 				// nachystej si ctverec
@@ -130,20 +132,18 @@ int main(int argc, char const *argv[]) {
 				// NEOBYVATELNE START
 				if(!pole[i][j].livable) {
 
-					if(pole[i][j].s) {
-						int found = 0; // nalezeno nove stanoviste
-						int x = 0;
-						int y = 0;
-						while(!found) {
-							x = rand() % 18;
-							y = rand() % 100;
-							if(pole[x][y].s != T_MAX) {
-								found = 1;
-								buffer[x][y] += pole[i][j].s;
-							}								
-						}
-					}
-					buffer[i][j] = 0;
+				    	//	if(sum > 220 & sum <= 250) {
+					    	//	buffer[i][j] = sum/9 + 1.31; // s1
+				    	//	}					
+				    	//	else if(sum > 120 && sum <= 170) {
+					    //		buffer[i][j] = sum/9 + 1.1; // s2
+				    	//	}				
+				    	//	else if(sum > 170 && sum <= 180) {
+					    //		buffer[i][j] = sum/9 + 1.2; // s3
+				    	//	}					
+				    	//	else if(sum > 180 && sum <= 220) {
+					    //		buffer[i][j] = sum/9 + 1.2; // s4
+				    	//	}	
 					
 				}
 				else { // OBYVATELNE START
@@ -198,7 +198,22 @@ int main(int argc, char const *argv[]) {
 				    		else if(sum > 5*PS_MAX) {
 					    		buffer[i][j] = 26.7 - distr(9-c); // s5
 				    		}	
-						}			    	
+						}	
+						else { // tolice
+		
+				    		if(sum > 60 & sum <= 120) {
+					    		buffer[i][j] = sum/9 + 1.31; // s1
+				    		}					
+				    		else if(sum > 120 && sum <= 150) {
+					    		buffer[i][j] = sum/9 + 0.9; // s2
+				    		}				
+				    		else if(sum > 150 && sum <= 180) {
+					    		buffer[i][j] = sum/9 + 0.7; // s3
+				    		}					
+				    		else if(sum > 180 && sum <= 200) {
+					    		buffer[i][j] = sum/9 + 1.1; // s4
+				    		}	
+						}		    	
 				    			
 					}
 					// LETO
@@ -208,7 +223,7 @@ int main(int argc, char const *argv[]) {
 						if(pole[i][j].plodina) {
 
 							if(c == 15)
-								buffer[i][j] = 32.76;
+								buffer[i][j] = 32.76;	
 				    		else if(sum <= 0.7*PS_MAX) {
 					    		buffer[i][j] = 0; // s0
 				    		}				
@@ -228,7 +243,26 @@ int main(int argc, char const *argv[]) {
 					    		buffer[i][j] = 32.76 - distr(15-c); // s5
 				    		}	
 						}
+						else {
+				    		if(sum > 220 & sum <= 250) {
+					    		buffer[i][j] = sum/9 + 1.31; // s1
+				    		}					
+				    		else if(sum > 120 && sum <= 170) {
+					    		buffer[i][j] = sum/9 + 1.1; // s2
+				    		}				
+				    		else if(sum > 170 && sum <= 180) {
+					    		buffer[i][j] = sum/9 + 1.2; // s3
+				    		}					
+				    		else if(sum > 180 && sum <= 220) {
+					    		buffer[i][j] = sum/9 + 1.2; // s4
+				    		}	
+						}
 	  
+					}
+					
+					// PODZIM PRO TOLICI POUZE, rozdeleno kvuli orbe
+					else if(c >= 16 && c <= 21 && !pole[i][j].plodina) {
+						buffer[i][j] = sum/9 + 7.85;
 					}
 					
 					// PODZIM - drzi se a jeste roste, ale ne uz tak moc
@@ -237,30 +271,17 @@ int main(int argc, char const *argv[]) {
 						// psenice
 						if(pole[i][j].plodina) { // 80->100->560
 						
-				    		if(sum >= 0 && sum < 12) {
-					    		buffer[i][j] = 1.4;
-				    		}					
-				    		else if(sum >= 12 && sum < 13) {
-					    		buffer[i][j] = 2.6;
-				    		}	
-				    		else if(sum >= 13 && sum <= 24) {
-				    			buffer[i][j] = 8;
-				    		}			
-				    		else if(sum > 24 && sum < 50) {
-					    		buffer[i][j] = 15;
-				    		}
+							if(c == 18)
+								buffer[i][j] = pole[i][j].s * 1.25; // udaj
+							else if(c < 21)
+								buffer[i][j] = pole[i][j].s * 2.43; // konstanta vypocitana
 						}
 								  
 					}
 
 					// ZIMA
 					else {
-
-						// psenice
-						if(pole[i][j].plodina) {
-							buffer[i][j] = pole[i][j].s * 0.6;
-						}
-
+						buffer[i][j] = pole[i][j].s * 0.6;
 					}				
 					
 				}
@@ -325,13 +346,13 @@ int main(int argc, char const *argv[]) {
 		SDL_Delay(100);
 		
 		// prehraj data na dalsi kolo
-		for(int i = 0; i < 100; i++) {
+		for(int i = 0; i < 43; i++) {
 			for(int j = 0; j < 100; j++) {
 				pole[i][j].s = buffer[i][j];
 			}
 		}
 
-		char *month; // mesic
+		char const *month; // mesic
 		if(c < 2)
 			month = "leden";
 		else if(c < 4)
@@ -357,16 +378,18 @@ int main(int argc, char const *argv[]) {
 		else
 			month = "prosinec";
 
-		std::cout << "tyden: " << month << "\tnor v psenici: "<< nor_ps << "\tnor psen./1ha: " << (nor_ps/2500)*71.428 << "\tnor v tolici: " << nor_tol << "\tnor tol./1ha: " << (nor_tol/7500)*71.428 << "\n";
+		std::cout << "tyden: " << month << "\tnor v psenici: "<< (int)nor_ps << "\tnor psen./1ha: " << (int)((nor_ps/2500)*71.428) << "\tnor v tolici: " << (int)nor_tol << "\tnor tol./1ha: " << (int)((nor_tol/1800)*71.428) << "\n";
 		
 		c++; // pricti cyklus
 
 		// pole se stava obyvatelne zacatkem rijna, uz to tam roste, naszp tam hrabose
 		if(c == 18) {
-			for(int i = 0; i < 100; i++) {
+			for(int i = 0; i < 43; i++) {
 				for(int j = 0; j < 100; j++) {
-					pole[i][j].s = 1.24 - distr(0.24); // prumerne 1.12
-					pole[i][j].livable = 1;
+					if(pole[i][j].plodina) {
+						pole[i][j].s = 1.24 - distr(0.24); // prumerne 1.12
+						pole[i][j].livable = 1;
+					}
 				}
 			}		
 		}
