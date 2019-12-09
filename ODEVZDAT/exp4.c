@@ -1,5 +1,5 @@
 #include <iostream>
-#include <SDL2/SDL.h>
+//#include <SDL2/SDL.h>
 #include <cmath>
 #include <ctime>
 #include <vector>
@@ -19,7 +19,8 @@ struct ar {
 	// dalsi veci jako JEDY, livable, dravci atd.
 	int plodina; // 0 = tolice, 1 = psenice
 	int livable; // pole je obyvatelne
-	int stutox; // pocet granuli stutoxu. max 186.662 na 1.4ar ctverec
+	int zasoba_stutoxu; // pocet granuli stutoxu za obdobi. max 128 granuli na ctverec pri 2hg/ha, pri 10kg/ha 5*128
+	int stutox; // aktualni stutox na poli
 };
 
 // ukazalo se ze mezi polem 2,3,4 je aktivni potok, takze prestoze k nim mame statistiky, pole 3 a 4 byla zrusena
@@ -41,26 +42,26 @@ int main(int argc, char const *argv[]) {
 
   	srand(time(0));
   
-    SDL_Window * window;
-    SDL_Renderer * renderer;
+    //SDL_Window * window;
+    //SDL_Renderer * renderer;
 	
-    int w = 6; // graficka v/s metru
+    //int w = 6; // graficka v/s metru
 
     float buffer[43][100]; // buffer na meziukladani
 	
     // inicializace SDL
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cout << "Chyba SDL: " << SDL_GetError() << '\n';
-        return -1;
-    }
+    //if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    //    std::cout << "Chyba SDL: " << SDL_GetError() << '\n';
+    //   return -1;
+    //}
     // vytvoreni SDL okna
-    if (SDL_CreateWindowAndRenderer(600, 600,SDL_WINDOW_OPENGL, &window, &renderer) < 0) {
-        std::cout << "Chyba SDL: " << SDL_GetError() << '\n';
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return -2;
-    }
+    //if (SDL_CreateWindowAndRenderer(600, 600,SDL_WINDOW_OPENGL, &window, &renderer) < 0) {
+    //    std::cout << "Chyba SDL: " << SDL_GetError() << '\n';
+    //    SDL_DestroyRenderer(renderer);
+    //    SDL_DestroyWindow(window);
+    //    SDL_Quit();
+    //    return -2;
+    //}
 	
 	// resetuj pole a napln typem potravin, taky pocatecnim mnozstvim
 	for(int i = 0; i < 43; i++) {
@@ -85,6 +86,10 @@ int main(int argc, char const *argv[]) {
 			
 			if(i < 43) // deaktivuj pole 3 a 4
 				pole[i][j].livable = 1;
+
+			// NAPLN ZASOBY JEDU
+			pole[i][j].zasoba_stutoxu = 128; // 2kg/ha, *5 pro 10kg
+			pole[i][j].stutox = 0; // aktualni stutox
 			
 			// napln hrabosi pocatecnimi
 			if(pole[i][j].plodina) {
@@ -95,7 +100,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	SDL_Rect rect;
+	//SDL_Rect rect;
 
 	// jeden cyklus ma 2t, rok ma 52t, tzn za rok 26 cyklu (1. ledna az 31. prosince)
 	int c = 4; // zaciname na zacatku brezna prvniho roku
@@ -111,18 +116,18 @@ int main(int argc, char const *argv[]) {
 		// AUTOMATA START
 
 		// We want to use black background
-		SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
+		//SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
 		// Clear the screen with current background color
-		SDL_RenderClear(renderer);
+		//SDL_RenderClear(renderer);
 		
 		for(int i = 0; i < 43; i++) {
 			for(int j = 0; j < 100; j++) {
 
 				// nachystej si ctverec
-				rect.x=i*w;
-				rect.y=j*w;
-				rect.w=w;
-				rect.h=w;
+				//rect.x=i*w;
+				//rect.y=j*w;
+				//rect.w=w;
+				//rect.h=w;
 				
 				// HLUBOKA ORBA V ZARI
 				if(c == 16) {
@@ -267,9 +272,9 @@ int main(int argc, char const *argv[]) {
 					// PODZIM PRO TOLICI POUZE, rozdeleno kvuli orbe
 					else if(c >= 16 && c <= 21 && !pole[i][j].plodina) {
 						if(c < 19)
-							buffer[i][j] = sum/9 + 1.94;
+							buffer[i][j] = pole[i][j].s * 1.058; // konstanta
 						else
-							buffer[i][j] = sum/9 + 7.85;
+							buffer[i][j] = pole[i][j].s * 1.143; // konstanta
 					}
 					
 					// PODZIM - drzi se a jeste roste, ale ne uz tak moc
@@ -292,65 +297,115 @@ int main(int argc, char const *argv[]) {
 					}				
 					
 				}
+
+				// VLIV STUTOXU 2 - od zacatku srpna do zacatku prosince, max. 120 dni
+				if((c >= 16 && c <= 21 && c%2 == 0) && !pole[i][j].plodina) {				
+					// nasyp jed na pole
+					if(pole[i][j].zasoba_stutoxu > 0) { // jeste muzeme nasypat jed
+						int mn = range(2,4) * buffer[i][j]; // 2-4 granuli na noru při 2kg/ha
+						if((int)mn > pole[i][j].zasoba_stutoxu) {// nasyp zbytek stutoxu do nor
+							pole[i][j].stutox = pole[i][j].zasoba_stutoxu;
+							pole[i][j].zasoba_stutoxu = 0; // stutox dosel
+						}
+						else { // dosyp stutox
+							pole[i][j].stutox = (int)mn;
+							pole[i][j].zasoba_stutoxu = pole[i][j].zasoba_stutoxu - (int)mn;
+						}
+						
+						int stav = (int)buffer[i][j]; // aktualni stav na poli
+						int ubytek = 0; // ubytek hrabosu, pak zmen buffer touto hodnotou
+											
+						// pockej na vysledek
+						for(int a = 0; a < stav; a++) {
+						
+							if(((rand() % 100) < 75) && (ubytek < stav) && (pole[i][j].stutox > 0)) { // ucinnost jedu 95% o neco snizena velkoplosnou aplikaci, navic snizeno opakovanou navnadou
+								ubytek++;
+								pole[i][j].stutox--;
+							}
+						}
+						
+						// spocitej ubytky
+						if((buffer[i][j] - ubytek) < 0)
+							buffer[i][j] = 0;
+						else
+							buffer[i][j] -= ubytek;
+						
+						if(pole[i][j].plodina) { // psenice
+							if((nor_ps - ubytek) < 0)
+								nor_ps = 0;
+							else
+								nor_ps -= ubytek;
+						}
+						else { // tolice
+							if((nor_tol - ubytek) < 0)
+								nor_tol = 0;
+							else
+								nor_tol -= ubytek;
+						}
+					
+					}
+					pole[i][j].stutox = 0; // stutox se rozpadne po 2-3 dnech					
+				}
+
 				
 				// TEPRVE TED VYKRESLUJ, vnejsi vlivy muzou zmenit barvu
 				
-				if(pole[i][j].plodina) { // psenice
+				//if(pole[i][j].plodina) { // psenice
 
-					if(buffer[i][j] == 0)
-						SDL_SetRenderDrawColor(renderer, 0xDA, 0xA5, 0x20, 0xFF);
+				//	if(buffer[i][j] == 0)
+				//		SDL_SetRenderDrawColor(renderer, 0xDA, 0xA5, 0x20, 0xFF);
 	
-					else if(buffer[i][j] <= 7)
-						SDL_SetRenderDrawColor(renderer, 0xFF, 0xaa, 0x98, 0xFF);
+				//	else if(buffer[i][j] <= 7)
+				//		SDL_SetRenderDrawColor(renderer, 0xFF, 0xaa, 0x98, 0xFF);
 					
-					else if(buffer[i][j] <= 14)
-						SDL_SetRenderDrawColor(renderer, 0xFF, 0x56, 0x32, 0xFF);
+				//	else if(buffer[i][j] <= 14)
+				//		SDL_SetRenderDrawColor(renderer, 0xFF, 0x56, 0x32, 0xFF);
 					
-					else if(buffer[i][j] <= 21)
-						SDL_SetRenderDrawColor(renderer, 0xFe, 0x41, 0x18, 0xFF);
+				//	else if(buffer[i][j] <= 21)
+				//		SDL_SetRenderDrawColor(renderer, 0xFe, 0x41, 0x18, 0xFF);
 
-					else if(buffer[i][j] <= 28)
-						SDL_SetRenderDrawColor(renderer, 0xfe, 0x2d, 0, 0xFF);
+				//	else if(buffer[i][j] <= 28)
+				//		SDL_SetRenderDrawColor(renderer, 0xfe, 0x2d, 0, 0xFF);
 
-					else
-						SDL_SetRenderDrawColor(renderer, 0xe5, 0x28, 0, 0xFF);	
+				//	else
+				//		SDL_SetRenderDrawColor(renderer, 0xe5, 0x28, 0, 0xFF);	
 			
-				}
-				else {
+				//}
+				//else {
 				
 					// tohle je pro tolici
-					if(buffer[i][j] == 0)
-						SDL_SetRenderDrawColor(renderer, 0x22, 0x8B, 0x22, 0xFF);
+					//if(buffer[i][j] == 0)
+					//	SDL_SetRenderDrawColor(renderer, 0x22, 0x8B, 0x22, 0xFF);
 	
-					else if(buffer[i][j] <= 20)
-						SDL_SetRenderDrawColor(renderer, 0xFF, 0xaa, 0x98, 0xFF);
+					//else if(buffer[i][j] <= 20)
+					//	SDL_SetRenderDrawColor(renderer, 0xFF, 0xaa, 0x98, 0xFF);
 					
-					else if(buffer[i][j] <= 40)
-						SDL_SetRenderDrawColor(renderer, 0xFF, 0x56, 0x32, 0xFF);
+					//else if(buffer[i][j] <= 40)
+					//	SDL_SetRenderDrawColor(renderer, 0xFF, 0x56, 0x32, 0xFF);
 					
-					else if(buffer[i][j] <= 60)
-						SDL_SetRenderDrawColor(renderer, 0xFe, 0x41, 0x18, 0xFF);
+					//else if(buffer[i][j] <= 60)
+					//	SDL_SetRenderDrawColor(renderer, 0xFe, 0x41, 0x18, 0xFF);
 
-					else if(buffer[i][j] <= 80)
-						SDL_SetRenderDrawColor(renderer, 0xfe, 0x2d, 0, 0xFF);
+					//else if(buffer[i][j] <= 80)
+					//	SDL_SetRenderDrawColor(renderer, 0xfe, 0x2d, 0, 0xFF);
 
-					else
-						SDL_SetRenderDrawColor(renderer, 0xe5, 0x28, 0, 0xFF);	
+					//else
+					//	SDL_SetRenderDrawColor(renderer, 0xe5, 0x28, 0, 0xFF);	
 				
-				}						
+				//}						
 				
-				SDL_RenderFillRect(renderer, &rect);
-				SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xFF);
-				SDL_RenderDrawRect(renderer, &rect);						
+				//SDL_RenderFillRect(renderer, &rect);
+				//SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xFF);
+				//SDL_RenderDrawRect(renderer, &rect);						
 
 			}
 		}
 		
 		// AUTOMATA END
 		
-		// vykresli frejm
-		SDL_RenderPresent(renderer);
-		SDL_Delay(100);
+		// vykresli snimek
+		//SDL_RenderPresent(renderer);
+		//SDL_Delay(100);
 		
 		// prehraj data na dalsi kolo
 		for(int i = 0; i < 43; i++) {
@@ -408,9 +463,9 @@ int main(int argc, char const *argv[]) {
 
 	}
 
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
-	SDL_Quit();
+	//SDL_DestroyRenderer(renderer);
+	//SDL_DestroyWindow(window);
+	//SDL_Quit();
 	return 0;
 
 }
